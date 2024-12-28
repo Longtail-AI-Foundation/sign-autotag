@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+import cv2
 
 # Helper functions to remove repetition
 
@@ -316,5 +317,42 @@ def plot_source_target_histograms(
         ax.set_title(f"{finger_names[i]} Movement Signature")
         ax.legend()
     plt.tight_layout()
+    plt.show()
+
+def annotate_and_show_video(video_path, distances):
+    cap = cv2.VideoCapture(video_path)
+    frames = []
+
+    for i, distance in enumerate(distances):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        cv2.putText(
+            frame,
+            f"{distance:.2f}",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            2,
+            (255, 255, 255),
+            2
+        )
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frames.append(frame)
+
+    cap.release()
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(frames[0])
+
+    def update(frame_idx):
+        im.set_array(frames[frame_idx])
+        return [im]
+
+    ani = FuncAnimation(
+        fig, update,
+        frames=len(frames),
+        interval=50,
+        blit=True
+    )
     plt.show()
 

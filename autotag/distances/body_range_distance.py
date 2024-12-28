@@ -68,7 +68,11 @@ def histogram_distance(source_hist, target_hist):
         return 10.0
     return diff.sum()
 
-def body_range_distance(source_kps, target_kps, window_len, window_stride=1, **kwargs):
+def body_range_distance(source_kps_and_scores, target_kps_and_scores, window_len, window_stride=1, **kwargs):
+
+    source_kps, _ = source_kps_and_scores
+    target_kps, _ = target_kps_and_scores
+
     body_points_source = extract_body_region_ranges(source_kps)
     right_hand_source  = get_kps_for_range(source_kps, coco_wholebody_right_hand_range, one_indexed=False)
     source_hist        = calculate_histogram_for_sign(right_hand_source, body_points_source)
@@ -131,5 +135,5 @@ def body_range_distance(source_kps, target_kps, window_len, window_stride=1, **k
 
             plt.show()
 
-    return distances
+    return np.array(distances)
 

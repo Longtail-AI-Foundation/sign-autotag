@@ -60,9 +60,10 @@ def get_keypoints_for_timerange(keypoints, fps, t1, t2):
     based on the specified frames-per-second (fps).
     Returns the subset of keypoints and the start/end frames.
     """
+    kp, kp_sc = keypoints 
     start_frame = int(t1 * fps)
     end_frame = int(t2 * fps)
-    return keypoints[start_frame:end_frame+1], start_frame, end_frame
+    return (kp[start_frame:end_frame+1], kp_sc[start_frame:end_frame+1]), start_frame, end_frame
 
 def read_json(json_file):
     """
@@ -113,12 +114,14 @@ def extract_keypoints_sequence(data):
     Extract keypoints from multiple frames.
     """
     keypoints_sequence = []
+    keypoints_sequence_scores = []
     for frame in data:
         if 'predictions' in frame and frame['predictions']:
             if frame['predictions'][0] and 'keypoints' in frame['predictions'][0][0]:
                 keypoints = frame['predictions'][0][0]['keypoints']
                 keypoints_sequence.append(keypoints)
-    return keypoints_sequence
+                keypoints_sequence_scores.append(frame['predictions'][0][0]['keypoint_scores'])
+    return np.array(keypoints_sequence), np.array(keypoints_sequence_scores)
 
 def normalise_keypoints(keypoints):
     """
