@@ -19,6 +19,7 @@ from autotag.utils.vis_utils import *
 from autotag.distances.body_range_distance import body_range_distance
 from autotag.distances.hands_used_distance import hands_used_distance
 from autotag.distances.dtw_right_hand_distance import dtw_right_hand_distance
+from autotag.distances.fingertip_movement_distance import fingertip_movement_distance
 
 OUTPUT_PATH = 'frames'
 THRESHOLD = 4.5
@@ -330,13 +331,14 @@ def _main(sourcefile, source_dir, target_dir) :
     kp_target_segment, target_start_frame, target_end_frame = get_keypoints_for_timerange(kp_target_all, target_fps, target_start_ts, target_end_ts)
 
     # try with 5 also
-    range_distances = body_range_distance(kp_source_segment, kp_target_all, 8)
-    hand_distances = hands_used_distance(kp_source_segment, kp_target_all, 8)
-    dtw_distances = dtw_right_hand_distance(kp_source_segment, kp_target_all, 8, use_arm=True)
+    range_distances = body_range_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0]//2)
+    hand_distances = hands_used_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0]//2)
+    dtw_distances = dtw_right_hand_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0]//2, use_arm=True)
+    movement_distance=fingertip_movement_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0]//2)
 
     plot_distance(hand_distances, true_start=target_start_frame, true_end=target_end_frame)
 
-    distances = (range_distances + hand_distances + dtw_distances) / 3.
+    distances = (range_distances + hand_distances + dtw_distances + movement_distance) / 4
     plot_distance(distances, true_start=target_start_frame, true_end=target_end_frame)
     annotate_and_show_video(target_video, distances)
     exit()
@@ -362,6 +364,10 @@ def _main(sourcefile, source_dir, target_dir) :
     if source_data["source"]["handedness"] == "both" :
         left_hand_source_kp = get_kps_for_range(extract_keypoints_sequence(kp_source_segment), left_hand_range) #retrieve left hand kp across frames
         left_hand_target_kp = get_kps_for_range(extract_keypoints_sequence(kp_target_all), left_hand_range) #retrieve left hand kp across frames
+
+
+    
+
 
     bin_labels = [
         'Right (0°–45°)', 
