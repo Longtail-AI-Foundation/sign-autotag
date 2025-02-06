@@ -1,10 +1,13 @@
 import numpy as np
 
+
+
 def fingertip_movement_distance(
     source_kps_and_scores, 
     target_kps_and_scores, 
     window_len, 
     window_stride=1, 
+    hand_usage='both', 
     **kwargs
 ):
     """
@@ -15,6 +18,7 @@ def fingertip_movement_distance(
         target_kps_and_scores (tuple): Tuple containing target keypoints and scores.
         window_len (int): Length of the sliding window.
         window_stride (int): Stride of the sliding window.
+        hand_usage (str): Specifies hand usage ('right', 'left', or 'both'). Defaults to 'both'.
         **kwargs: Additional keyword arguments.
 
     Returns:
@@ -23,13 +27,16 @@ def fingertip_movement_distance(
     source_kps, source_scores = source_kps_and_scores
     target_kps, target_scores = target_kps_and_scores
 
-    # Extract right-hand and finger keypoints
-    source_right_finger_kps = get_right_finger_keypoints(source_kps)
-    target_right_finger_kps = get_right_finger_keypoints(target_kps)
+    # Extract right-hand and left-hand finger keypoints based on hand_usage
+    if hand_usage in ['right', 'both']:
+        source_right_finger_kps = get_right_finger_keypoints(source_kps)
+        target_right_finger_kps = get_right_finger_keypoints(target_kps)
+        source_hist_right, _, _ = calculate_movement_signature_allfingertips(*source_right_finger_kps)
 
-    source_hist, _, _ = calculate_movement_signature_allfingertips(
-        *source_right_finger_kps
-    )
+    if hand_usage in ['left', 'both']:
+        source_left_finger_kps = get_left_finger_keypoints(source_kps)
+        target_left_finger_kps = get_left_finger_keypoints(target_kps)
+        source_hist_left, _, _ = calculate_movement_signature_allfingertips(*source_left_finger_kps)
 
     distances = []
     n_frames = len(target_kps)
@@ -40,13 +47,30 @@ def fingertip_movement_distance(
         target_window_scores = target_scores[i:i + window_len]
 
         # Calculate movement signature for the target window
-        target_hist, _, _ = calculate_movement_signature_allfingertips(
-            *get_right_finger_keypoints(target_window_kps)
-        )
+        if hand_usage in ['right', 'both']:
+            target_hist_right, _, _ = calculate_movement_signature_allfingertips(
+                *get_right_finger_keypoints(target_window_kps)
+            )
+            distance_right = 0.5 * (((source_hist_right - target_hist_right) ** 2) / 
+                                   (source_hist_right + target_hist_right + 1e-5)).sum()
 
-        # Calculate histogram-based distance
-        distance = 0.5 * (((source_hist - target_hist) ** 2) / 
-                          (source_hist + target_hist + 1e-5)).sum()
+        if hand_usage in ['left', 'both']:
+            target_hist_left, _, _ = calculate_movement_signature_allfingertips(
+                *get_left_finger_keypoints(target_window_kps)
+            )
+            distance_left = 0.5 * (((source_hist_left - target_hist_left) ** 2) / 
+                                  (source_hist_left + target_hist_left + 1e-5)).sum()
+
+        # Combine distances based on hand_usage
+        if hand_usage == 'both':
+            distance = (distance_right + distance_left) / 2
+        elif hand_usage == 'right':
+            distance = distance_right
+        elif hand_usage == 'left':
+            distance = distance_left
+        else:
+            raise ValueError("Invalid hand_usage. Must be 'right', 'left', or 'both'.")
+
         distances.append(distance)
 
     return np.array(distances)
@@ -80,6 +104,34 @@ def get_right_finger_keypoints(kp_sequence):
         right_littlefinger_kp
     )
 
+
+def get_left_finger_keypoints(kp_sequence):
+    """
+    Extract keypoints for left-hand fingers from the keypoint sequence.
+
+    Parameters:
+        kp_sequence (numpy.ndarray): Sequence of keypoints.
+
+    Returns:
+        tuple: Keypoints for each finger and the palm-related points.
+    """
+    left_finger_thumb_kp = get_kps_for_range(kp_sequence, range(95, 96))
+    left_middlefing_bottom_kp = get_kps_for_range(kp_sequence, range(100, 101))
+    left_hand_bottom_kp = get_kps_for_range(kp_sequence, range(91, 92))
+    left_indexfinger_kp = get_kps_for_range(kp_sequence, range(99, 100))  # Adjust range if needed
+    left_middlefinger_kp = get_kps_for_range(kp_sequence, range(103, 104))
+    left_ringfinger_kp = get_kps_for_range(kp_sequence, range(107, 108))
+    left_littlefinger_kp = get_kps_for_range(kp_sequence, range(111, 112))
+
+    return (
+        left_finger_thumb_kp,
+        left_middlefing_bottom_kp,
+        left_hand_bottom_kp,
+        left_indexfinger_kp,
+        left_middlefinger_kp,
+        left_ringfinger_kp,
+        left_littlefinger_kp
+    )
 
 def get_kps_for_range(kp_sequence, index_range):
     """

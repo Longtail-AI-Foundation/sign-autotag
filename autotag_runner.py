@@ -18,8 +18,9 @@ from autotag.utils.utils import *
 from autotag.utils.vis_utils import *
 from autotag.distances.body_range_distance import body_range_distance
 from autotag.distances.hands_used_distance import hands_used_distance
-from autotag.distances.dtw_right_hand_distance import dtw_right_hand_distance
+from autotag.distances.dtw_hand_distance import dtw_hand_distance
 from autotag.distances.fingertip_movement_distance import fingertip_movement_distance
+from autotag.distances.hands_used_distance import hand_movement_heuristic
 from autotag.distances.finger_bend_distance import finger_bend_distance
 
 OUTPUT_PATH = 'frames'
@@ -278,7 +279,7 @@ def calculate_movement_signature_allfingertips(finger1_keypoints, finger2_keypoi
 
     return final_histogram, individual_histograms, contributions
 
-def _main(sourcefile, source_dir, target_dir) :
+def _main(sourcefile, source_dir, target_dir):
     source_data = read_json(sourcefile)
 
     source_video = os.path.basename(source_data["source"]["source_video"])
@@ -367,44 +368,97 @@ def _main(sourcefile, source_dir, target_dir) :
         left_hand_source_kp = get_kps_for_range(extract_keypoints_sequence(kp_source_segment), left_hand_range) #retrieve left hand kp across frames
         left_hand_target_kp = get_kps_for_range(extract_keypoints_sequence(kp_target_all), left_hand_range) #retrieve left hand kp across frames
 
+            range_distances = body_range_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2,'right')
+            hand_distances = hands_used_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2)
+            dtw_distances = dtw_hand_distance(
+                kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2, use_arm=True, hand_usage='right'
+            )
+            movement_distance = fingertip_movement_distance(
+                kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2, hand_usage='right'
+            )
+            bend_distance=finger_bend_distance(kp_source_segment,kp_target_all,right_hand_source_kp.shape[0] // 2)
+            print('Right hand is used')
+        else:
+            range_distances = body_range_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2,hand_usage='both')
+            hand_distances = hands_used_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2)
+            dtw_distances = dtw_hand_distance(
+                kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2, use_arm=True, hand_usage='both'
+            )
+            movement_distance = fingertip_movement_distance(
+                kp_source_segment, kp_target_all, right_hand_source_kp.shape[0] // 2, hand_usage='both'
+            )
+            bend_distance=finger_bend_distance(kp_source_segment,kp_target_all,right_hand_source_kp.shape[0] // 2)
+            print('Both hands are used')
 
-    
 
+        distances = (range_distances + hand_distances + dtw_distances + movement_distance + bend_distance) / 5
+        target_path=target["targetFilePath"]
+        
+        plot_distance(distances, title=f"Distance vs. Window Index Of {target_path}", true_start=target_start_frame, true_end=target_end_frame , i=i)
 
-    bin_labels = [
-        'Right (0°–45°)', 
-        'Up (45°–90°)', 
-        'Up (90°–135°)', 
-        'Left (135°–180°)', 
-        'Left (180°–225°)', 
-        'Down (225°–270°)', 
-        'Down (270°–315°)', 
-        'Right (315°–360°)'
-    ]
-    # # plot_movement_signatures_both(movement_signature_source, movement_signature_target, bin_labels)
+        annotate_and_show_video(target_video, distances)
+        # exit()
 
-    source_final_histogram, source_individual_histograms, contributions_source=calculate_movement_signature_allfingertips(right_finger_thumb_source_kp, right_indexfinger_source_kp,right_middlefinger_source_kp , right_ringfinger_source_kp, right_littlefinger_source_kp, right_hand_bottom_source_kp,right_middlefing_bottom_source_kp)
-    target_final_histogram, target_individual_histograms, contributions = calculate_movement_signature_allfingertips(right_finger_thumb_target_kp, right_indexfinger_target_kp,right_middlefinger_target_kp , right_ringfinger_target_kp, right_littlefinger_target_kp, right_hand_bottom_target_kp,right_middlefing_bottom_target_kp)
-    # Plot the histograms
-    # plot_fingertip_histograms(final_histogram, individual_histograms, contributions, bin_labels)
+        # right_hand_target_kp = get_kps_for_range(kp_target_all, right_hand_range)
+        # right_hand_targetseg_kp = get_kps_for_range(kp_target_segment, right_hand_range)
+        # right_finger_thumb_target_kp = get_kps_for_range(kp_target_segment, right_finger_thumb_range)
+        # right_middlefing_bottom_target_kp = get_kps_for_range(kp_target_segment, right_middlefing_bottom_range)
+        # right_hand_bottom_target_kp = get_kps_for_range(kp_target_segment, right_hand_bottom_range)
+        # right_indexfinger_target_kp = get_kps_for_range(kp_target_segment, right_indexfinger_range)
+        # right_middlefinger_target_kp = get_kps_for_range(kp_target_segment, right_middlefing_range)
+        # right_ringfinger_target_kp = get_kps_for_range(kp_target_segment, right_ringfinger_range)
+        # right_littlefinger_target_kp = get_kps_for_range(kp_target_segment, right_littlefinger_range)
 
-    plot_source_target_histograms(
-        source_final_histogram=source_final_histogram,
-        target_final_histogram=target_final_histogram,
-        source_individual_histograms=source_individual_histograms,
-        target_individual_histograms=target_individual_histograms,
-        bin_labels=bin_labels
-    )
+        # source_final_histogram, source_individual_histograms, contributions_source = calculate_movement_signature_allfingertips(
+        #     right_finger_thumb_source_kp,
+        #     right_indexfinger_source_kp,
+        #     right_middlefinger_source_kp,
+        #     right_ringfinger_source_kp,
+        #     right_littlefinger_source_kp,
+        #     right_hand_bottom_source_kp,
+        #     right_middlefing_bottom_source_kp,
+        # )
+        # target_final_histogram, target_individual_histograms, contributions = calculate_movement_signature_allfingertips(
+        #     right_finger_thumb_target_kp,
+        #     right_indexfinger_target_kp,
+        #     right_middlefinger_target_kp,
+        #     right_ringfinger_target_kp,
+        #     right_littlefinger_target_kp,
+        #     right_hand_bottom_target_kp,
+        #     right_middlefing_bottom_target_kp,
+        # )
 
-    # plot_movement_signature(movement_signature, bin_labels)
-    animate_keypoints(right_hand_source_np, right_hand_targetseg_np)
-    visualize_normalized_points(right_hand_source_np, right_hand_target_np)
+        # plot_source_target_histograms(
+        #     source_final_histogram=source_final_histogram,
+        #     target_final_histogram=target_final_histogram,
+        #     source_individual_histograms=source_individual_histograms,
+        #     target_individual_histograms=target_individual_histograms,
+        #     bin_labels=[
+        #         "Right (0°–45°)",
+        #         "Up (45°–90°)",
+        #         "Up (90°–135°)",
+        #         "Left (135°–180°)",
+        #         "Left (180°–225°)",
+        #         "Down (225°–270°)",
+        #         "Down (270°–315°)",
+        #         "Right (315°–360°)",
+        #     ],
+        # )
+
+        # right_hand_source_np = normalise_keypoints(right_hand_source_kp)
+        # right_hand_target_np = normalise_keypoints(right_hand_target_kp)
+        # right_hand_targetseg_np = normalise_keypoints(right_hand_targetseg_kp)
+
+        # animate_keypoints(right_hand_source_np, right_hand_targetseg_np)
+        # visualize_normalized_points(right_hand_source_np, right_hand_target_np)
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Something to do with keypoint analysis, okay!')
-    parser.add_argument('--source', type=str, required=True, help='path to the source json file')
-    parser.add_argument('--source_video_dir', type=str, required=True, help='source video dir')
-    parser.add_argument('--target_video_dir', type=str, required=True, help='target video dir')
+    json_dir = "/home/ubuntu/general-purpose/suvrat/gen_pkl_autotag/vid_meta"
+    json_path = os.path.join(json_dir, "coffee_0DHQ4dMCMew_metadata.json")
+    source_dir = "/home/ubuntu/general-purpose/suvrat/autotag/toshare/videos/source"
+    target_dir = "/home/ubuntu/general-purpose/suvrat/gen_pkl_autotag/vid_pkl"
 
-    args = parser.parse_args()
-    bFound = _main(args.source, args.source_video_dir, args.target_video_dir)
+    _main(json_path, source_dir, target_dir)
+
+
