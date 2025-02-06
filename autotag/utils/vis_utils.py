@@ -5,8 +5,9 @@ import cv2
 
 # Helper functions to remove repetition
 
-def setup_plot(title, x_label, y_label, x_lim=None, y_lim=None, figsize=(10, 6)):
-    fig, ax = plt.subplots(figsize=figsize)
+def setup_plot(title, x_label, y_label, fig=None, ax=None, x_lim=None, y_lim=None, figsize=(10, 6)):
+    if fig is None and ax is None: 
+        fig, ax = plt.subplots(figsize=figsize)
     ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
@@ -33,11 +34,12 @@ def plot_scatter(ax, x_data, y_data, color="blue", label=None, s=20, zorder=None
 def plot_bars(ax, x_positions, heights, width=0.35, color='blue', alpha=0.7, label=None):
     ax.bar(x_positions, heights, width=width, color=color, alpha=alpha, label=label)
 
-def finalize_plot(ax, legend=True):
+def finalize_plot(ax, legend=True, show=True):
     if legend:
         ax.legend()
     plt.tight_layout()
-    plt.show()
+    if show: 
+        plt.show()
 
 # Refactored functions using the helpers
 
@@ -179,7 +181,10 @@ def plot_distance(
     # Plot style
     color='blue',
     marker=None,
-    line_label="Distance"
+    line_label="Distance",
+    fig=None,
+    ax=None,
+    show=True,
 ):
     """
     A generic function to plot 'distances' with optional:
@@ -193,7 +198,9 @@ def plot_distance(
         title=title,
         x_label=x_label,
         y_label=y_label,
-        figsize=figsize
+        figsize=figsize,
+        fig=fig,
+        ax=ax,
     )
 
     # Main line
@@ -216,7 +223,7 @@ def plot_distance(
     if lines_info:
         plot_vertical_lines(ax, lines_info)
 
-    finalize_plot(ax)
+    finalize_plot(ax, show=show)
 
 def plot_movement_signature(movement_signature, bin_labels):
     x_pos = np.arange(len(movement_signature))

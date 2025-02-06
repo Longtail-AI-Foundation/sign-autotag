@@ -2,30 +2,26 @@
 This distance is between features that define which
 which fingers are bent and which ones are straight
 """ 
-""" 
-This distance is between features that define which
-which fingers are bent and which ones are straight
-""" 
 import numpy as np
 import matplotlib.pyplot as plt
 from ..utils.coco_ranges import *
 from ..utils.utils import *
 from copy import deepcopy
+from bisect import bisect_left
 
 right_hand_fingers = [
     list(range(2,5)),   # Thumb
     list(range(5,9)),   # Index Finger
     list(range(9,13)),  # Middle Finger
-    list(range(13,17)),    # Ring Finger
-    list(range(17,21))   # Little Finger
+    list(range(13,17)), # Ring Finger
+    list(range(17,21))  # Little Finger
 ]
 
 DEBUG = False
 
-def normalized (vec):
+def normalized(vec):
     norms = np.linalg.norm(vec, axis=-1, keepdims=True)
     return vec / (norms + 1e-7)
-
 
 def compute_angle(a, b, c):
     v1 = normalized(b - a)
@@ -41,74 +37,87 @@ def compute_angle_2(a, b, c, d):
     dotp = np.clip(dotp, -1.0, 1.0)
     return np.degrees(np.arccos(dotp))
 
-def count_bent_fingers (kps) : 
+def count_bent_fingers(kps):
     cnt = 0
-    for finger in right_hand_fingers:  
+    for finger in right_hand_fingers:
         finger_kps = kps[finger, :]
-        if DEBUG: 
+        if DEBUG:
             plt.plot(finger_kps[:, 0], finger_kps[:, 1], c='b', alpha=0.5)
         a, b, c = finger_kps[0], finger_kps[1], finger_kps[-1]
-        angle = compute_angle(a, b, c) 
-        if angle > 60.0 :
+        angle = compute_angle(a, b, c)
+        if angle > 60.0:
             cnt += 1
-    if DEBUG: 
+    if DEBUG:
         plt.scatter(
-            kps[coco_wholebody_right_hand_range, 0], 
-            kps[coco_wholebody_right_hand_range, 1], 
-            c='g', 
+            kps[coco_wholebody_right_hand_range, 0],
+            kps[coco_wholebody_right_hand_range, 1],
+            c='g',
             alpha=0.1
         )
         plt.show()
     return cnt
 
-
-
 def bent_finger_histogram(window_frames, **kwargs):
     """
-    Computes a histogram of finger bending angles categorized into four bins: 
-    [0-45°, 45-90°, 90-135°, 135-180°] for each finger.
+    Computes a histogram of finger bending angles categorized into bins
 
     Parameters:
-        window_frames (numpy array): Shape (num_frames, num_keypoints, 2 or 3) - hand keypoints over time.
-        kwargs: Optional parameters such as 'use_arm' (bool).
+        window_frames (numpy array): Shape (num_frames, num_keypoints, 2) - hand keypoints over time.
 
     Returns:
-        np.ndarray: A (num_fingers x 4) matrix representing the normalized histogram of angles.
+        np.ndarray: A (num_fingers x num_bins) matrix representing the normalized histogram of angles.
     """
     # Select keypoints for the right hand
     selected_kps_right = coco_wholebody_right_hand_range
-    if kwargs.get('use_arm', True):
-        selected_kps_right += coco_wholebody_right_arm_range
-
-    
 
     # Extract right-hand keypoints
     right_hand_source = window_frames[:, selected_kps_right, :]
 
     num_fingers = len(right_hand_fingers)
-    bins = np.zeros((num_fingers, 4))  # 4 bins per finger
+    angles = list(np.linspace(0, 180, kwargs.get('bins', 4) + 1))
+    bins = np.zeros((num_fingers, len(angles) - 1))  # 4 bins per finger
 
     for t in range(len(window_frames)):
-        kps = right_hand_source[t]  # Extract keypoints for current frame
+        kps = right_hand_source[t]
+        # We'll store the angles for each finger to plot if DEBUG is True
+        finger_angles = []
+
         for finger_idx, finger in enumerate(right_hand_fingers):
-            if(finger_idx==0):
-
+            if finger_idx == 0:
+                # Thumb
                 finger_kps = kps[finger, :]
-                angle = compute_angle(finger_kps[0],finger_kps[1],finger_kps[2])  # Compute the finger bend angle
-            elif (finger_idx!=0):
+                angle = compute_angle(finger_kps[0], finger_kps[1], finger_kps[2])
+            else:
+                # Other fingers
                 finger_kps = kps[finger, :]
-                angle = compute_angle_2(finger_kps[0],finger_kps[1],finger_kps[2],finger_kps[3])
-            # Assign angle to appropriate bin
-            if 0 <= angle < 45:
-                bins[finger_idx, 0] += 1
-            elif 45 <= angle < 90:
-                bins[finger_idx, 1] += 1
-            elif 90 <= angle < 135:
-                bins[finger_idx, 2] += 1
-            elif 135 <= angle <= 180:
-                bins[finger_idx, 3] += 1
+                angle = compute_angle_2(
+                    finger_kps[0], finger_kps[1], finger_kps[2], finger_kps[3]
+                )
 
-    return bins / len(window_frames)  # Normalize histogram
+            assert 0 <= angle <= 180, f'(bent_finger_histogram): Out of range angle detected, angle = {angle}'
+            finger_angles.append(angle)
+
+            bin_idx = min(max(0, bisect_left(angles, angle) - 1), len(angles) - 1)
+            bins[finger_idx, bin_idx] += 1
+
+        # DEBUG plotting
+        if DEBUG:
+            plt.figure()
+            # Plot the whole body keypoints from window_frames[t], translucent
+            plt.scatter(window_frames[t, :, 0], window_frames[t, :, 1], c='gray', alpha=0.3)
+
+            colors = ['r', 'g', 'b', 'y', 'c']
+            for finger_idx, finger in enumerate(right_hand_fingers):
+                finger_kps = kps[finger, :]
+                plt.plot(finger_kps[:, 0], finger_kps[:, 1], color=colors[finger_idx])
+                # Place the angle text near the last keypoint
+                x_text, y_text = finger_kps[-1, 0], finger_kps[-1, 1]
+                plt.text(x_text, y_text, f"{finger_angles[finger_idx]:.2f}", color=colors[finger_idx])
+
+            plt.title(f'Frame {t}')
+            plt.show()
+
+    return bins / len(window_frames)
 
 def chi_squared_distance(hist_source, hist_target, epsilon=1e-10):
     """
@@ -128,16 +137,16 @@ def finger_bend_distance(source_kps_and_scores, target_kps_and_scores, window_le
     source_kps, source_scores = source_kps_and_scores
     target_kps, target_scores = target_kps_and_scores
 
-    source_hist = bent_finger_histogram(source_kps) 
+    source_hist = bent_finger_histogram(source_kps, **kwargs)
 
     distances = []
     n_frames = len(target_kps)
 
     for i in range(0, n_frames - window_len + 1, window_stride):
         window_body_frames = target_kps[i : i + window_len]
-        target_hist = bent_finger_histogram(window_body_frames)
-        d = chi_squared_distance(source_hist, target_hist)
+        target_hist = bent_finger_histogram(window_body_frames, **kwargs)
+        d = chi_squared_distance(source_hist, target_hist).sum()
         distances.append(d)
-    distance=np.sum(distances,axis=1)
+
     return np.array(distances)
 
