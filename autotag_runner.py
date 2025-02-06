@@ -20,6 +20,7 @@ from autotag.distances.body_range_distance import body_range_distance
 from autotag.distances.hands_used_distance import hands_used_distance
 from autotag.distances.dtw_right_hand_distance import dtw_right_hand_distance
 from autotag.distances.fingertip_movement_distance import fingertip_movement_distance
+from autotag.distances.finger_bend_distance import finger_bend_distance
 
 OUTPUT_PATH = 'frames'
 THRESHOLD = 4.5
@@ -335,12 +336,13 @@ def _main(sourcefile, source_dir, target_dir) :
     hand_distances = hands_used_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0]//2)
     dtw_distances = dtw_right_hand_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0]//2, use_arm=True)
     movement_distance=fingertip_movement_distance(kp_source_segment, kp_target_all, right_hand_source_kp.shape[0]//2)
-
-    plot_distance(hand_distances, true_start=target_start_frame, true_end=target_end_frame)
+    bend_distances = finger_bend_distance(kp_source_segment, kp_target_all, 8, use_arm=True)
+    # plot_distance(hand_distances, true_start=target_start_frame, true_end=target_end_frame)
 
     distances = (range_distances + hand_distances + dtw_distances + movement_distance) / 4
+    distances = (range_distances + hand_distances + dtw_distances + hand_distances) 
     plot_distance(distances, true_start=target_start_frame, true_end=target_end_frame)
-    annotate_and_show_video(target_video, distances)
+    annotate_and_show_video(target_video, distances, framerate=20)
     exit()
 
     right_hand_target_kp = get_kps_for_range(kp_target_all, right_hand_range)

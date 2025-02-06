@@ -4,6 +4,30 @@ import math
 import pickle
 import numpy as np
 
+def chi_squared_distance(p, q):
+    """
+    Compute the Chi-Squared distance between two 1D arrays p and q.
+
+    Parameters:
+        p (array-like): First array of non-negative values.
+        q (array-like): Second array of non-negative values.
+
+    Returns:
+        float: Chi-Squared distance between p and q.
+    """
+    p = np.asarray(p, dtype=np.float64)
+    q = np.asarray(q, dtype=np.float64)
+
+    # Avoid division by zero: consider only elements where p + q > 0
+    mask = (p + q) > 0
+    chi_sq_dist = np.sum(((p[mask] - q[mask])**2) / (p[mask] + q[mask]))
+
+    return chi_sq_dist
+
+def normalized (vec):
+    norms = np.linalg.norm(vec, axis=-1, keepdims=True)
+    return vec / (norms + 1e-7)
+
 def get_kps_for_range(keypoints, kps_range, one_indexed=True) :
     """ 
     Extract keypoints in range. By default we use 1 based indexing but we can turn it off.

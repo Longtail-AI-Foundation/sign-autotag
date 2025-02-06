@@ -13,3 +13,32 @@ coco_wholebody_left_arm_range = [5, 7, 9]
 coco_wholebody_right_upper_arm_range = [6, 8] 
 coco_wholebody_right_lower_arm_range = [8, 10] 
 coco_wholebody_right_arm_range = [6, 8, 10] 
+
+# fingers 
+coco_wholebody_right_hand_thumb  = [113, 114, 115, 116]
+coco_wholebody_right_hand_index  = [117, 118, 119, 120]
+coco_wholebody_right_hand_middle = [121, 122, 123, 124]
+coco_wholebody_right_hand_ring   = [125, 126, 127, 128]
+coco_wholebody_right_hand_little = [129, 130, 131, 132]
+
+coco_wholebody_left_hand_thumb  = [ 92,  93,  94,  95]
+coco_wholebody_left_hand_index  = [ 96,  97,  98,  99]
+coco_wholebody_left_hand_middle = [100, 101, 102, 103]
+coco_wholebody_left_hand_ring   = [104, 105, 106, 107]
+coco_wholebody_left_hand_little = [108, 109, 110, 111]
+
+right_hand_fingers = [
+    coco_wholebody_right_hand_thumb, 
+    coco_wholebody_right_hand_index, 
+    coco_wholebody_right_hand_middle,
+    coco_wholebody_right_hand_ring,
+    coco_wholebody_right_hand_little,
+]
+
+left_hand_fingers = [
+    coco_wholebody_left_hand_thumb, 
+    coco_wholebody_left_hand_index, 
+    coco_wholebody_left_hand_middle,
+    coco_wholebody_left_hand_ring,
+    coco_wholebody_left_hand_little,
+]

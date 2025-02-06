@@ -319,7 +319,7 @@ def plot_source_target_histograms(
     plt.tight_layout()
     plt.show()
 
-def annotate_and_show_video(video_path, distances):
+def annotate_and_show_video(video_path, distances, framerate=20):
     cap = cv2.VideoCapture(video_path)
     frames = []
 
@@ -351,7 +351,7 @@ def annotate_and_show_video(video_path, distances):
     ani = FuncAnimation(
         fig, update,
         frames=len(frames),
-        interval=50,
+        interval=1000/framerate,
         blit=True
     )
     plt.show()

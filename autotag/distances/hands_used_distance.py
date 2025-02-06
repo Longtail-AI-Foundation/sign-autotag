@@ -11,10 +11,6 @@ class HandUsage(Enum):
     SINGLE_HAND = 0
     BOTH_HAND   = 1
 
-def normalized (vec):
-    norms = np.linalg.norm(vec, axis=-1, keepdims=True)
-    return vec / (norms + 1e-7)
-
 def meets_threshold(array, threshold=0.8):
     """
     Check if the proportion of True values in the array meets or exceeds the threshold.
